@@ -55,6 +55,14 @@ class RESTAssistant:
             timeout=timeout,
             headers=headers,
         )
+
+        try:
+            response_json = await response.json()
+        except json.JSONDecodeError:
+            response_text = await response.text()
+            return response_text
+            
+
         response_json = await response.json()
         return response_json
 

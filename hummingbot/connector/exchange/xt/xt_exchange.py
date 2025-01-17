@@ -187,14 +187,15 @@ class XtExchange(ExchangePyBase):
                       "price": price_str}
         if order_type == OrderType.LIMIT:
             api_params["timeInForce"] = CONSTANTS.TIME_IN_FORCE_GTC
-
+       # self.logger().warn(f"Placing new order {order_id} - {trade_type.name} {amount} {trading_pair} at {price_str}")
         order_result = await self._api_post(
             path_url=CONSTANTS.ORDER_PATH_URL,
             data=api_params,
             is_auth_required=True)
 
         if "result" not in order_result or order_result["result"] is None:
-            raise
+            self.logger().error(f"Error placing order: {order_result}")
+            raise Exception(f"Error placing order: {order_result}")
 
         o_id = str(order_result["result"]["orderId"])
         transact_time = self.current_timestamp
@@ -363,10 +364,10 @@ class XtExchange(ExchangePyBase):
 
                         if CONSTANTS.ORDER_STATE[order_update.get("st")] == OrderState.CANCELED:
                             await self._cancelled_order_handler(tracked_order.client_order_id, order_update)
-
+                       # self.logger().warn(f"Processing order update {order_update} for {client_order_id}")
                         order_update = OrderUpdate(
                             trading_pair=tracked_order.trading_pair,
-                            update_timestamp=order_update["t"] * 1e-3,
+                            update_timestamp=order_update["ct"] * 1e-3,
                             new_state=CONSTANTS.ORDER_STATE[order_update["st"]],
                             client_order_id=tracked_order.client_order_id,
                             exchange_order_id=str(order_update["i"]),
@@ -473,6 +474,7 @@ class XtExchange(ExchangePyBase):
             return
 
         updated_order_data = response["result"]
+        #self.logger().warn(f"got order update {updated_order_data} for {client_order_id}")
         new_state = CONSTANTS.ORDER_STATE[updated_order_data["state"]]
 
         if new_state == OrderState.CANCELED:
@@ -482,7 +484,7 @@ class XtExchange(ExchangePyBase):
             client_order_id=tracked_order.client_order_id,
             exchange_order_id=str(updated_order_data["orderId"]),
             trading_pair=tracked_order.trading_pair,
-            update_timestamp=updated_order_data["updatedTime"] * 1e-3,
+            update_timestamp=updated_order_data["time"] * 1e-3,
             new_state=new_state,
         )
 

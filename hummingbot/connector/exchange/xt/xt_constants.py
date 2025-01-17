@@ -3,7 +3,7 @@ from hummingbot.core.data_type.in_flight_order import OrderState
 
 DEFAULT_DOMAIN = "com"
 
-HBOT_ORDER_ID_PREFIX = "xt-"
+HBOT_ORDER_ID_PREFIX = "xt"
 MAX_ORDER_ID_LEN = 32
 
 # Base URL
@@ -43,7 +43,7 @@ TIME_IN_FORCE_IOC = 'IOC'  # Immediate or cancel
 TIME_IN_FORCE_FOK = 'FOK'  # Fill or kill
 
 XT_VALIDATE_ALGORITHMS = "HmacSHA256"
-XT_VALIDATE_RECVWINDOW = "5000"
+XT_VALIDATE_RECVWINDOW = "35000"
 XT_VALIDATE_CONTENTTYPE_URLENCODE = "application/x-www-form-urlencoded"
 XT_VALIDATE_CONTENTTYPE_JSON = "application/json;charset=UTF-8"
 
