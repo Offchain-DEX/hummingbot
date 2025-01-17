@@ -1,7 +1,7 @@
 from decimal import Decimal
 from unittest import TestCase
 
-from pyinjective.constant import Denom
+from pyinjective.utils.denom import Denom
 
 from hummingbot.connector.gateway.clob_spot.data_sources.injective.injective_utils import (
     derivative_price_to_backend,
@@ -28,6 +28,7 @@ class InjectiveUtilsTests(TestCase):
             quote=6,
             min_price_tick_size=1000,
             min_quantity_tick_size=100,
+            min_notional=0,
         )
 
         backend_quantity = derivative_quantity_to_backend(quantity=Decimal("1"), denom=denom)
@@ -41,6 +42,7 @@ class InjectiveUtilsTests(TestCase):
             quote=6,
             min_price_tick_size=1000,
             min_quantity_tick_size=100,
+            min_notional=0,
         )
 
         backend_quantity = derivative_price_to_backend(price=Decimal("123.45"), denom=denom)

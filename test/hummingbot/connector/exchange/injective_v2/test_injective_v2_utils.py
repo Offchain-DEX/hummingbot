@@ -11,10 +11,13 @@ from hummingbot.connector.exchange.injective_v2.data_sources.injective_vaults_da
     InjectiveVaultsDataSource,
 )
 from hummingbot.connector.exchange.injective_v2.injective_v2_utils import (
+    FEE_CALCULATOR_MODES,
     InjectiveConfigMap,
     InjectiveCustomNetworkMode,
     InjectiveDelegatedAccountMode,
     InjectiveMainnetNetworkMode,
+    InjectiveMessageBasedTransactionFeeCalculatorMode,
+    InjectiveSimulatedTransactionFeeCalculatorMode,
     InjectiveTestnetNetworkMode,
     InjectiveVaultAccountMode,
 )
@@ -44,25 +47,28 @@ class InjectiveConfigMapTests(TestCase):
 
     def test_custom_network_config_creation(self):
         network_config = InjectiveCustomNetworkMode(
-            lcd_endpoint='https://devnet.lcd.injective.dev',
-            tm_websocket_endpoint='wss://devnet.tm.injective.dev/websocket',
-            grpc_endpoint='devnet.injective.dev:9900',
-            grpc_exchange_endpoint='devnet.injective.dev:9910',
-            grpc_explorer_endpoint='devnet.injective.dev:9911',
-            chain_id='injective-777',
-            env='devnet',
+            lcd_endpoint="https://devnet.lcd.injective.dev",
+            tm_websocket_endpoint="wss://devnet.tm.injective.dev/websocket",
+            grpc_endpoint="devnet.injective.dev:9900",
+            grpc_exchange_endpoint="devnet.injective.dev:9910",
+            grpc_explorer_endpoint="devnet.injective.dev:9911",
+            chain_stream_endpoint="devnet.injective.dev:9999",
+            chain_id="injective-777",
+            env="devnet",
             secure_connection=False,
         )
 
         network = network_config.network()
         expected_network = Network.custom(
-            lcd_endpoint='https://devnet.lcd.injective.dev',
-            tm_websocket_endpoint='wss://devnet.tm.injective.dev/websocket',
-            grpc_endpoint='devnet.injective.dev:9900',
-            grpc_exchange_endpoint='devnet.injective.dev:9910',
-            grpc_explorer_endpoint='devnet.injective.dev:9911',
-            chain_id='injective-777',
-            env='devnet'
+            lcd_endpoint="https://devnet.lcd.injective.dev",
+            tm_websocket_endpoint="wss://devnet.tm.injective.dev/websocket",
+            grpc_endpoint="devnet.injective.dev:9900",
+            grpc_exchange_endpoint="devnet.injective.dev:9910",
+            grpc_explorer_endpoint="devnet.injective.dev:9911",
+            chain_stream_endpoint="devnet.injective.dev:9999",
+            chain_id="injective-777",
+            env="devnet",
+            official_tokens_list_url="",
         )
 
         self.assertEqual(expected_network.string(), network.string())
@@ -91,6 +97,7 @@ class InjectiveConfigMapTests(TestCase):
             network=Network.testnet(node="sentry"),
             use_secure_connection=True,
             rate_limits=CONSTANTS.PUBLIC_NODE_RATE_LIMITS,
+            fee_calculator_mode=InjectiveSimulatedTransactionFeeCalculatorMode(),
         )
 
         self.assertEqual(InjectiveGranteeDataSource, type(data_source))
@@ -109,6 +116,7 @@ class InjectiveConfigMapTests(TestCase):
             network=Network.testnet(node="sentry"),
             use_secure_connection=True,
             rate_limits=CONSTANTS.PUBLIC_NODE_RATE_LIMITS,
+            fee_calculator_mode=InjectiveSimulatedTransactionFeeCalculatorMode(),
         )
 
         self.assertEqual(InjectiveVaultsDataSource, type(data_source))
@@ -134,3 +142,20 @@ class InjectiveConfigMapTests(TestCase):
         data_source = injective_config.create_data_source()
 
         self.assertEqual(InjectiveGranteeDataSource, type(data_source))
+
+    def test_fee_calculator_validator(self):
+        config = InjectiveConfigMap()
+
+        config.fee_calculator = InjectiveSimulatedTransactionFeeCalculatorMode.Config.title
+        self.assertEqual(InjectiveSimulatedTransactionFeeCalculatorMode(), config.fee_calculator)
+
+        config.fee_calculator = InjectiveMessageBasedTransactionFeeCalculatorMode.Config.title
+        self.assertEqual(InjectiveMessageBasedTransactionFeeCalculatorMode(), config.fee_calculator)
+
+        with self.assertRaises(ValueError) as ex_context:
+            config.fee_calculator = "invalid"
+
+        self.assertEqual(
+            f"Invalid fee calculator, please choose a value from {list(FEE_CALCULATOR_MODES.keys())}.",
+            str(ex_context.exception.args[0][0].exc)
+        )

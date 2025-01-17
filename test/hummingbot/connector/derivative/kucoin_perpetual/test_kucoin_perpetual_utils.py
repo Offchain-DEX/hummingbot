@@ -53,12 +53,11 @@ class TradingPairUtilsTest(unittest.TestCase):
             "nextFundingRateTime": 21031525,
             "maxLeverage": 100,
             "sourceExchanges": [
-                "huobi",
+                "htx",
                 "Okex",
                 "Binance",
                 "Kucoin",
                 "Poloniex",
-                "Hitbtc"
             ],
             "premiumsSymbol1M": ".XBTUSDTMPI",
             "premiumsSymbol8H": ".XBTUSDTMPI8H",

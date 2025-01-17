@@ -892,6 +892,7 @@ class ExchangePyBase(ExchangeBase, ABC):
             is_auth_required: bool = False,
             return_err: bool = False,
             limit_id: Optional[str] = None,
+            headers: Optional[Dict[str, Any]] = None,
             **kwargs,
     ) -> Dict[str, Any]:
 
@@ -910,13 +911,13 @@ class ExchangePyBase(ExchangeBase, ABC):
                     is_auth_required=is_auth_required,
                     return_err=return_err,
                     throttler_limit_id=limit_id if limit_id else path_url,
+                    headers=headers,
                 )
 
                 return request_result
             except IOError as request_exception:
                 last_exception = request_exception
                 if self._is_request_exception_related_to_time_synchronizer(request_exception=request_exception):
-                    self._time_synchronizer.clear_time_offset_ms_samples()
                     await self._update_time_synchronizer()
                 else:
                     raise

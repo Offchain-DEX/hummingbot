@@ -3,7 +3,7 @@ from hummingbot.core.data_type.in_flight_order import OrderState
 
 DEFAULT_DOMAIN = "com"
 
-HBOT_ORDER_ID_PREFIX = "x-XEKWYICX"
+HBOT_ORDER_ID_PREFIX = "HUMBOT"
 MAX_ORDER_ID_LEN = 32
 
 # Base URL
@@ -112,3 +112,5 @@ ORDER_NOT_EXIST_ERROR_CODE = -2013
 ORDER_NOT_EXIST_MESSAGE = "Order does not exist"
 UNKNOWN_ORDER_ERROR_CODE = -2011
 UNKNOWN_ORDER_MESSAGE = "Unknown order sent"
+TIMESTAMP_RELATED_ERROR_CODE = 700003
+TIMESTAMP_RELATED_ERROR_MESSAGE = "Timestamp for this request is outside of the recvWindow"

@@ -622,12 +622,11 @@ class KucoinPerpetualAPIOrderBookDataSourceTests(TestCase):
                 "nextFundingRateTime": 22646889,
                 "maxLeverage": 20,
                 "sourceExchanges": [
-                    "huobi",
+                    "htx",
                     "Okex",
                     "Binance",
                     "Kucoin",
                     "Poloniex",
-                    "Hitbtc"
                 ],
                 "premiumsSymbol1M": ".HBOTUSDTMPI",
                 "premiumsSymbol8H": ".HBOTUSDTMPI8H",

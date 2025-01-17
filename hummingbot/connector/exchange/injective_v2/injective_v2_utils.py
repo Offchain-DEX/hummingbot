@@ -1,10 +1,19 @@
+import re
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import TYPE_CHECKING, Dict, List, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from pydantic import Field, SecretStr
 from pydantic.class_validators import validator
+from pyinjective.async_client import AsyncClient
+from pyinjective.composer import Composer
+from pyinjective.core.broadcaster import (
+    MessageBasedTransactionFeeCalculator,
+    SimulatedTransactionFeeCalculator,
+    TransactionFeeCalculator,
+)
 from pyinjective.core.network import Network
+from pyinjective.wallet import PrivateKey
 
 from hummingbot.client.config.config_data_types import BaseClientModel, BaseConnectorConfigMap, ClientFieldData
 from hummingbot.connector.exchange.injective_v2 import injective_constants as CONSTANTS
@@ -32,6 +41,73 @@ DEFAULT_FEES = TradeFeeSchema(
 )
 
 TESTNET_NODES = ["lb", "sentry"]
+
+
+class InjectiveFeeCalculatorMode(BaseClientModel, ABC):
+    @abstractmethod
+    def create_calculator(
+        self,
+        client: AsyncClient,
+        composer: Composer,
+        gas_price: Optional[int] = None,
+        gas_limit_adjustment_multiplier: Optional[Decimal] = None,
+    ) -> Network:
+        pass
+
+
+class InjectiveSimulatedTransactionFeeCalculatorMode(InjectiveFeeCalculatorMode):
+    name: str = Field(
+        default="simulated_transaction_fee_calculator",
+        const=True,
+        client_data=ClientFieldData(),
+    )
+
+    class Config:
+        title = "simulated_transaction_fee_calculator"
+
+    def create_calculator(
+            self,
+            client: AsyncClient,
+            composer: Composer,
+            gas_price: Optional[int] = None,
+            gas_limit_adjustment_multiplier: Optional[Decimal] = None,
+    ) -> TransactionFeeCalculator:
+        return SimulatedTransactionFeeCalculator(
+            client=client,
+            composer=composer,
+            gas_price=gas_price,
+            gas_limit_adjustment_multiplier=gas_limit_adjustment_multiplier,
+        )
+
+
+class InjectiveMessageBasedTransactionFeeCalculatorMode(InjectiveFeeCalculatorMode):
+    name: str = Field(
+        default="message_based_transaction_fee_calculator",
+        const=True,
+        client_data=ClientFieldData(),
+    )
+
+    class Config:
+        title = "message_based_transaction_fee_calculator"
+
+    def create_calculator(
+            self,
+            client: AsyncClient,
+            composer: Composer,
+            gas_price: Optional[int] = None,
+            gas_limit_adjustment_multiplier: Optional[Decimal] = None,
+    ) -> TransactionFeeCalculator:
+        return MessageBasedTransactionFeeCalculator(
+            client=client,
+            composer=composer,
+            gas_price=gas_price,
+        )
+
+
+FEE_CALCULATOR_MODES = {
+    InjectiveSimulatedTransactionFeeCalculatorMode.Config.title: InjectiveSimulatedTransactionFeeCalculatorMode,
+    InjectiveMessageBasedTransactionFeeCalculatorMode.Config.title: InjectiveMessageBasedTransactionFeeCalculatorMode,
+}
 
 
 class InjectiveNetworkMode(BaseClientModel, ABC):
@@ -123,6 +199,13 @@ class InjectiveCustomNetworkMode(InjectiveNetworkMode):
             prompt_on_new=True
         ),
     )
+    chain_stream_endpoint: str = Field(
+        default=...,
+        client_data=ClientFieldData(
+            prompt=lambda cm: ("Enter the network chain_stream_endpoint"),
+            prompt_on_new=True
+        ),
+    )
     chain_id: str = Field(
         default=...,
         client_data=ClientFieldData(
@@ -155,8 +238,10 @@ class InjectiveCustomNetworkMode(InjectiveNetworkMode):
             grpc_endpoint=self.grpc_endpoint,
             grpc_exchange_endpoint=self.grpc_exchange_endpoint,
             grpc_explorer_endpoint=self.grpc_explorer_endpoint,
+            chain_stream_endpoint=self.chain_stream_endpoint,
             chain_id=self.chain_id,
             env=self.env,
+            official_tokens_list_url=Network.mainnet().official_tokens_list_url,
         )
 
     def use_secure_connection(self) -> bool:
@@ -172,12 +257,19 @@ NETWORK_MODES = {
     InjectiveCustomNetworkMode.Config.title: InjectiveCustomNetworkMode,
 }
 
+# Captures a 12 or 24-word BIP39 seed phrase
+RE_SEED_PHRASE = re.compile(r"^(?:[a-z]+(?: [a-z]+){11}|[a-z]+(?: [a-z]+){23})$")
+
 
 class InjectiveAccountMode(BaseClientModel, ABC):
 
     @abstractmethod
     def create_data_source(
-            self, network: Network, use_secure_connection: bool, rate_limits: List[RateLimit],
+            self,
+            network: Network,
+            use_secure_connection: bool,
+            rate_limits: List[RateLimit],
+            fee_calculator_mode: InjectiveFeeCalculatorMode,
     ) -> "InjectiveDataSource":
         pass
 
@@ -186,7 +278,7 @@ class InjectiveDelegatedAccountMode(InjectiveAccountMode):
     private_key: SecretStr = Field(
         default=...,
         client_data=ClientFieldData(
-            prompt=lambda cm: "Enter your Injective trading account private key",
+            prompt=lambda cm: "Enter your Injective trading account private key or seed phrase",
             is_secure=True,
             is_connect_key=True,
             prompt_on_new=True,
@@ -214,11 +306,25 @@ class InjectiveDelegatedAccountMode(InjectiveAccountMode):
         ),
     )
 
+    @validator("private_key", pre=True)
+    def validate_network(cls, v: str):
+        # Both seed phrase and hex private keys supported
+        if isinstance(v, str):
+            v = v.strip()
+            if RE_SEED_PHRASE.match(v):
+                private_key = PrivateKey.from_mnemonic(v)
+                return private_key.to_hex()
+        return v
+
     class Config:
         title = "delegate_account"
 
     def create_data_source(
-            self, network: Network, use_secure_connection: bool, rate_limits: List[RateLimit],
+            self,
+            network: Network,
+            use_secure_connection: bool,
+            rate_limits: List[RateLimit],
+            fee_calculator_mode: InjectiveFeeCalculatorMode,
     ) -> "InjectiveDataSource":
         return InjectiveGranteeDataSource(
             private_key=self.private_key.get_secret_value(),
@@ -228,6 +334,7 @@ class InjectiveDelegatedAccountMode(InjectiveAccountMode):
             network=network,
             use_secure_connection=use_secure_connection,
             rate_limits=rate_limits,
+            fee_calculator_mode=fee_calculator_mode,
         )
 
 
@@ -265,7 +372,11 @@ class InjectiveVaultAccountMode(InjectiveAccountMode):
         title = "vault_account"
 
     def create_data_source(
-            self, network: Network, use_secure_connection: bool, rate_limits: List[RateLimit],
+            self,
+            network: Network,
+            use_secure_connection: bool,
+            rate_limits: List[RateLimit],
+            fee_calculator_mode: InjectiveFeeCalculatorMode,
     ) -> "InjectiveDataSource":
         return InjectiveVaultsDataSource(
             private_key=self.private_key.get_secret_value(),
@@ -275,6 +386,7 @@ class InjectiveVaultAccountMode(InjectiveAccountMode):
             network=network,
             use_secure_connection=use_secure_connection,
             rate_limits=rate_limits,
+            fee_calculator_mode=fee_calculator_mode,
         )
 
 
@@ -284,7 +396,10 @@ class InjectiveReadOnlyAccountMode(InjectiveAccountMode):
         title = "read_only_account"
 
     def create_data_source(
-            self, network: Network, use_secure_connection: bool, rate_limits: List[RateLimit],
+            self,
+            network: Network, use_secure_connection: bool,
+            rate_limits: List[RateLimit],
+            fee_calculator_mode: InjectiveFeeCalculatorMode,
     ) -> "InjectiveDataSource":
         return InjectiveReadOnlyDataSource(
             network=network,
@@ -321,6 +436,13 @@ class InjectiveConfigMap(BaseConnectorConfigMap):
             prompt_on_new=True,
         ),
     )
+    fee_calculator: Union[tuple(FEE_CALCULATOR_MODES.values())] = Field(
+        default=InjectiveSimulatedTransactionFeeCalculatorMode(),
+        client_data=ClientFieldData(
+            prompt=lambda cm: f"Select the fee calculator ({'/'.join(list(FEE_CALCULATOR_MODES.keys()))})",
+            prompt_on_new=True,
+        ),
+    )
 
     class Config:
         title = "injective_v2"
@@ -349,11 +471,24 @@ class InjectiveConfigMap(BaseConnectorConfigMap):
             sub_model = ACCOUNT_MODES[v].construct()
         return sub_model
 
+    @validator("fee_calculator", pre=True)
+    def validate_fee_calculator(cls, v: Union[(str, Dict) + tuple(FEE_CALCULATOR_MODES.values())]):
+        if isinstance(v, tuple(FEE_CALCULATOR_MODES.values()) + (Dict,)):
+            sub_model = v
+        elif v not in FEE_CALCULATOR_MODES:
+            raise ValueError(
+                f"Invalid fee calculator, please choose a value from {list(FEE_CALCULATOR_MODES.keys())}."
+            )
+        else:
+            sub_model = FEE_CALCULATOR_MODES[v].construct()
+        return sub_model
+
     def create_data_source(self):
         return self.account_type.create_data_source(
             network=self.network.network(),
             use_secure_connection=self.network.use_secure_connection(),
             rate_limits=self.network.rate_limits(),
+            fee_calculator_mode=self.fee_calculator,
         )
 
 

@@ -390,8 +390,9 @@ class ClientOrderTracker:
         )
 
     def _trigger_order_creation(self, tracked_order: InFlightOrder, previous_state: OrderState, new_state: OrderState):
-        if previous_state == OrderState.PENDING_CREATE and new_state not in [OrderState.CANCELED, OrderState.FAILED,
-                                                                             OrderState.PENDING_CANCEL]:
+        if (previous_state == OrderState.PENDING_CREATE and
+                previous_state != new_state and
+                new_state not in [OrderState.CANCELED, OrderState.FAILED, OrderState.PENDING_CANCEL]):
             self.logger().info(tracked_order.build_order_created_message())
             self._trigger_created_event(tracked_order)
 
@@ -406,8 +407,8 @@ class ClientOrderTracker:
         if prev_executed_amount_base < tracked_order.executed_amount_base:
             self.logger().info(
                 f"The {tracked_order.trade_type.name.upper()} order {tracked_order.client_order_id} "
-                f"amounting to {tracked_order.executed_amount_base}/{tracked_order.amount} "
-                f"{tracked_order.base_asset} has been filled."
+                f"amounting to {tracked_order.executed_amount_base}/{tracked_order.amount} {tracked_order.base_asset} "
+                f"has been filled at {fill_price} {tracked_order.quote_asset}."
             )
             self._trigger_filled_event(
                 order=tracked_order,

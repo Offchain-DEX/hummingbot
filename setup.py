@@ -33,13 +33,12 @@ class BuildExt(build_ext):
 
 def main():
     cpu_count = os.cpu_count() or 8
-    version = "20231225"
+    version = "20241227"
     all_packages = find_packages(include=["hummingbot", "hummingbot.*"], )
-    excluded_paths = ["hummingbot.connector.exchange.injective_v2",
-                      "hummingbot.connector.derivative.injective_v2_perpetual",
-                      "hummingbot.connector.gateway.clob_spot.data_sources.injective",
-                      "hummingbot.connector.gateway.clob_perp.data_sources.injective_perpetual"
-                      ]
+    excluded_paths = [
+        "hummingbot.connector.gateway.clob_spot.data_sources.injective",
+        "hummingbot.connector.gateway.clob_perp.data_sources.injective_perpetual"
+    ]
     packages = [pkg for pkg in all_packages if not any(fnmatch.fnmatch(pkg, pattern) for pattern in excluded_paths)]
     package_data = {
         "hummingbot": [
@@ -58,17 +57,17 @@ def main():
         "appnope",
         "async-timeout",
         "base58",
-        "gql",
         "cachetools",
         "certifi",
         "coincurve",
+        "coinbase-advanced-py==1.8.2",
         "cryptography",
         "cython==3.0.0",
         "cytoolz",
         "commlib-py",
         "docker",
         "diff-cover",
-        "dydx-v3-python",
+        "ecdsa",
         "eip712-structs",
         "eth-abi",
         "eth-account",
@@ -77,28 +76,26 @@ def main():
         "eth-typing",
         "eth-utils",
         "flake8",
-        "gql",
+        "grpcio",
         "hexbytes",
         "importlib-metadata",
         "injective-py",
         "mypy-extensions",
+        "msgpack",
         "nose",
         "nose-exclude",
-        "numpy",
+        "numpy==1.26.4",
         "pandas",
         "pip",
         "pre-commit",
         "prompt-toolkit",
         "protobuf",
-        "gql",
-        "grpcio",
-        "grpcio-tools",
         "psutil",
         "pydantic",
         "pyjwt",
         "pyperclip",
         "python-dateutil",
-        "python-telegram-bot",
+        "python-telegram-bot==12.8",
         "pyOpenSSL",
         "requests",
         "rsa",
@@ -111,12 +108,11 @@ def main():
         "tabulate",
         "tzlocal",
         "ujson",
-        "vega-python-sdk",
         "web3",
         "websockets",
         "yarl",
-        "python-telegram-bot==12.8",
         "pandas_ta==0.3.14b",
+        "xrpl-py==4.0.0b3",
     ]
 
     cython_kwargs = {

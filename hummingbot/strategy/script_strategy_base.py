@@ -1,9 +1,10 @@
 import logging
 from decimal import Decimal
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 
 import numpy as np
 import pandas as pd
+from pydantic import BaseModel
 
 from hummingbot.connector.connector_base import ConnectorBase
 from hummingbot.connector.utils import split_hb_trading_pair
@@ -15,6 +16,13 @@ from hummingbot.strategy.strategy_py_base import StrategyPyBase
 
 lsb_logger = None
 s_decimal_nan = Decimal("NaN")
+
+
+class ScriptConfigBase(BaseModel):
+    """
+    Base configuration class for script strategies. Subclasses can add their own configuration parameters.
+    """
+    pass
 
 
 class ScriptStrategyBase(StrategyPyBase):
@@ -32,7 +40,13 @@ class ScriptStrategyBase(StrategyPyBase):
             lsb_logger = logging.getLogger(__name__)
         return lsb_logger
 
-    def __init__(self, connectors: Dict[str, ConnectorBase]):
+    @classmethod
+    def init_markets(cls, config: BaseModel):
+        """This method is called in the start command if the script has a config class defined, and allows
+        the script to define the market connectors and trading pairs needed for the strategy operation."""
+        raise NotImplementedError
+
+    def __init__(self, connectors: Dict[str, ConnectorBase], config: Optional[BaseModel] = None):
         """
         Initialising a new script strategy object.
 
@@ -42,6 +56,7 @@ class ScriptStrategyBase(StrategyPyBase):
         self.connectors: Dict[str, ConnectorBase] = connectors
         self.ready_to_trade: bool = False
         self.add_markets(list(connectors.values()))
+        self.config = config
 
     def tick(self, timestamp: float):
         """
@@ -66,7 +81,7 @@ class ScriptStrategyBase(StrategyPyBase):
         """
         pass
 
-    def on_stop(self):
+    async def on_stop(self):
         pass
 
     def buy(self,
@@ -89,7 +104,7 @@ class ScriptStrategyBase(StrategyPyBase):
         :return: The client assigned id for the new order
         """
         market_pair = self._market_trading_pair_tuple(connector_name, trading_pair)
-        self.logger().info(f"Creating {trading_pair} buy order: price: {price} amount: {amount}.")
+        self.logger().debug(f"Creating {trading_pair} buy order: price: {price} amount: {amount}.")
         return self.buy_with_specific_market(market_pair, amount, order_type, price, position_action=position_action)
 
     def sell(self,
@@ -112,7 +127,7 @@ class ScriptStrategyBase(StrategyPyBase):
         :return: The client assigned id for the new order
         """
         market_pair = self._market_trading_pair_tuple(connector_name, trading_pair)
-        self.logger().info(f"Creating {trading_pair} sell order: price: {price} amount: {amount}.")
+        self.logger().debug(f"Creating {trading_pair} sell order: price: {price} amount: {amount}.")
         return self.sell_with_specific_market(market_pair, amount, order_type, price, position_action=position_action)
 
     def cancel(self,

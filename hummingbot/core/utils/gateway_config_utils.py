@@ -8,7 +8,9 @@ native_tokens = {
     "avalanche": "AVAX",
     "algorand": "ALGO",
     "cosmos": "ATOM",
-    "polygon": "MATIC",
+    "celo": "CELO",
+    "osmosis": "OSMO",
+    "polygon": "POL",
     "harmony": "ONE",
     "binance-smart-chain": "BNB",
     "cronos": "CRO",
@@ -17,7 +19,10 @@ native_tokens = {
     "xdc": "XDC",
     "tezos": "XTZ",
     "xrpl": "XRP",
-    "kujira": "KUJI"
+    "kujira": "KUJI",
+    "telos": "TLOS",
+    "ethereum-classic": "ETC",
+    "solana": "SOL"
 }
 
 SUPPORTED_CHAINS = set(native_tokens.keys())
@@ -75,31 +80,30 @@ def build_list_display(connectors: List[Dict[str, Any]]) -> pd.DataFrame:
     """
     Display connector information as a table
     """
-    columns = ["Exchange", "Chains", "Tier"]
+    columns = ["Exchange", "Chains"]
     data = []
     for connector_spec in connectors:
         data.extend([
             [
                 connector_spec["name"],
                 ', '.join(connector_spec['chains']),
-                connector_spec["tier"],
             ]
         ])
 
     return pd.DataFrame(data=data, columns=columns)
 
 
-def build_connector_tokens_display(chain_networks: Dict[str, List[str]]) -> pd.DataFrame:
+def build_connector_tokens_display(connectors_chain_network: List[Dict[str, Any]]) -> pd.DataFrame:
     """
     Display connector and the tokens the balance command will report on
     """
     columns = ["Exchange", "Report Token Balances"]
     data = []
-    for network_spec in chain_networks:
+    for connector_spec in connectors_chain_network:
         data.extend([
             [
-                network_spec['chain_network'],
-                network_spec.get("tokens", ""),
+                f"{connector_spec['connector']}_{connector_spec['chain']}_{connector_spec['network']}",
+                connector_spec.get("tokens", ""),
             ]
         ])
 
