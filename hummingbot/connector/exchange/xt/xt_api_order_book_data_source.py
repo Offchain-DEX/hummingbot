@@ -70,13 +70,14 @@ class XtAPIOrderBookDataSource(OrderBookTrackerDataSource):
             try:
                 ws: WSAssistant = await self._connected_websocket_assistant()
                 await self._subscribe_channels(ws)
+                await ws.ping()  # to update last_recv_timestamp
                 await self._process_websocket_messages(websocket_assistant=ws)
             except asyncio.CancelledError:
                 raise
-            except Exception:
-                self.logger().exception(
-                    "Unexpected error occurred when listening to order book streams. Retrying in 5 seconds...",
-                )
+            except Exception as e:
+                # self.logger().exception(
+                #     f"Unexpected error occurred when listening to order book streams. Retrying in 5 seconds...: {e}"
+                # )
                 await self._sleep(1.0)
             finally:
                 ws and await ws.disconnect()

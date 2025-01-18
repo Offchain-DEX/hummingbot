@@ -17,7 +17,7 @@ services:
       - ./certs:/home/hummingbot/certs
       - ./scripts:/home/hummingbot/scripts
       - ./controllers:/home/hummingbot/controllers
-   #   - /home/philipp/hummingbot/hummingbot/connector/exchange/xt:/home/hummingbot/hummingbot/connector/exchange/xt
+  #  - /home/philipp/hummingbot/hummingbot/connector/exchange/xt:/home/hummingbot/hummingbot/connector/exchange/xt
     logging:
       driver: "json-file"
       options:
